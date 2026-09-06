@@ -1,0 +1,65 @@
+[package]
+name = "ndp-responder-lite"
+version = "0.1.0"
+authors = ["chariri <w@chariri.moe>", "Zhang Zongyu <zongyu@novazy.net>"]
+edition = "2024"
+rust-version = "1.94"
+license = "MIT"
+description = "Linux static IPv6 neighbor discovery responder."
+readme = "README.adoc"
+categories = ["command-line-utilities"]
+
+[dependencies]
+clap = { version = "4", features = ["derive"] }
+etherparse = "0.21"
+ipnet = { version = "2", features = ["serde"] }
+libc = "0.2"
+serde = { version = "1", features = ["derive"] }
+socket2 = { version = "0.6", features = ["all"] }
+tokio = { version = "1", features = ["rt", "macros", "net", "signal", "sync", "time"] }
+toml = "1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+[dev-dependencies]
+pnet_packet = "0.35"
+proptest = "1"
+serde_json = "1"
+tempfile = "3"
+xshell = "0.2"
+
+[profile.release]
+codegen-units = 1
+lto = "thin"
+strip = true
+
+[profile.dev]
+debug = 0
+incremental = false
+
+[profile.test]
+debug = 0
+incremental = false
+
+[package.metadata.deb]
+maintainer = "chariri <w@chariri.moe>"
+copyright = "2021 6-6-6; 2026 chariri"
+license-file = ["LICENSE", "0"]
+section = "net"
+priority = "optional"
+depends = "$auto, libgcc-s1 (>= 4.2), init-system-helpers (>= 1.54~)"
+extended-description = "Answers IPv6 Neighbor Solicitations for every address in configured static prefixes, including Duplicate Address Detection."
+maintainer-scripts = "packaging/debian"
+assets = [
+  ["target/release/ndp-responder-lite", "usr/bin/ndp-responder-lite", "755"],
+  ["README.adoc", "usr/share/doc/ndp-responder-lite/README.adoc", "644"],
+  ["example.config.toml", "usr/share/ndp-responder-lite/example.toml", "644"],
+  ["packaging/debian/ndp-responder-lite.8", "usr/share/man/man8/ndp-responder-lite.8", "644"],
+]
+
+[package.metadata.deb.systemd-units]
+unit-scripts = "packaging/debian"
+enable = false
+start = true
+restart-after-upgrade = true
+stop-on-upgrade = false

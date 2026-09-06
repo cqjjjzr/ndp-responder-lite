@@ -1,0 +1,40 @@
+.TH NDP-RESPONDER-LITE 8 "October 2026" "ndp-responder-lite 0.1.0"
+.SH NAME
+ndp-responder-lite \- Linux static IPv6 neighbor discovery responder
+.SH SYNOPSIS
+.B ndp-responder-lite
+.RB [ \-c " config.toml" ]
+.RB [ \-\-check ]
+.SH DESCRIPTION
+ndp-responder-lite answers IPv6 Neighbor Solicitations for configured prefixes.
+It runs on specified Ethernet interfaces, replying to both
+Duplicate Address Detection (DAD) and unicast neighbor resolution.
+.PP
+The daemon requires Linux, Ethernet interfaces, and CAP_NET_RAW capabilities.
+.SH OPTIONS
+.TP
+.BR \-c ", " \-\-config " PATH"
+Path to TOML configuration file. Default: /etc/ndp-responder-lite.toml.
+.TP
+.B \-\-check
+Validate configuration syntax and semantics, then exit without opening sockets.
+.TP
+.B \-\-help
+Print command-line help.
+.TP
+.B \-\-version
+Print version information.
+.SH FILES
+.TP
+.I /etc/ndp-responder-lite.toml
+Default configuration file.
+.TP
+.I /usr/share/ndp-responder-lite/example.toml
+Example configuration file provided by the package.
+.SH ENVIRONMENT
+.TP
+.B RUST_LOG
+Tracing log filter. Default: info.
+.SH SEE ALSO
+.BR ip (8),
+.BR systemctl (1)

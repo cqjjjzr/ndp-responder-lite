@@ -1,0 +1,29 @@
+name: CI
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  rust:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo fmt --check
+      - run: cargo clippy --all-targets --locked -- -D warnings
+      - run: cargo test --locked
+  debian:
+    runs-on: ubuntu-latest
+    container: rust:1.94.1-slim-trixie
+    steps:
+      - uses: actions/checkout@v6
+      - run: apt-get update && apt-get install -y --no-install-recommends dpkg-dev liblzma-dev
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo install cargo-deb --version 3.8.0 --locked
+      - run: cargo deb --locked
+      - uses: actions/upload-artifact@v7
+        with:
+          name: debian-package
+          path: target/debian/*.deb

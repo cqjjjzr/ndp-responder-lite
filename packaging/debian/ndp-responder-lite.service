@@ -1,0 +1,29 @@
+[Unit]
+Description=Linux static IPv6 neighbor discovery responder
+After=network.target
+ConditionPathExists=/etc/ndp-responder-lite.toml
+
+[Service]
+ExecStartPre=/usr/bin/ndp-responder-lite --config /etc/ndp-responder-lite.toml --check
+ExecStart=/usr/bin/ndp-responder-lite --config /etc/ndp-responder-lite.toml
+Restart=on-failure
+RestartSec=2
+DynamicUser=yes
+AmbientCapabilities=CAP_NET_RAW
+CapabilityBoundingSet=CAP_NET_RAW
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_PACKET AF_INET6 AF_UNIX
+RestrictRealtime=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

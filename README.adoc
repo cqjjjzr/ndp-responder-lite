@@ -1,0 +1,256 @@
+= ndp-responder-lite
+
+Linux IPv6 Neighbor Discovery responder for statically reserved prefixes.
+
+An upstream router on an on-link `/64` network resolves addresses in a reserved
+subprefix to this host's MAC address. Linux then routes incoming data packets
+downstream according to local routes.
+
+----
+                     Upstream Router (e.g. 2001:db8:1::1)
+                                    │
+                                    │  On-link /64 (Layer 2 link w/o route)
+                                    │  resolves 2001:db8:1:0:1::/80 via NDP
+                                    ▼
+                         eth0: 2001:db8:1::2 (MAC A)
+                      Linux router + ndp-responder-lite
+                 answers solicitations for 2001:db8:1:0:1::/80
+                         eth1: fe80::1
+                                    │
+                                    │  Routed downstream link
+                                    │  route: 2001:db8:1:0:1::/80 via fe80::2
+                                    ▼
+                     Downstream Host (e.g. 2001:db8:1:0:1::2)
+----
+
+This is like ndppd or ndpresponder, but significantly simpler: It basically
+implements the `static` mode of ndppd.
+This project is a fork of 6-6-6 and Lunar-ZZ's
+https://github.com/6-6-6/ndproxy[ndproxy].
+
+== How it works
+
+The daemon monitors configured Ethernet interfaces for IPv6 Neighbor
+Solicitations (RFC 4861). When a solicitation targets an address inside a
+reserved prefix, it replies with the local interface MAC address:
+
+* *Duplicate Address Detection (DAD):* For solicitations from the unspecified
+  address (`::`), it sends an advertisement to `ff02::1` (all-nodes multicast)
+  with the Solicited flag cleared (RFC 4862).
+* *Neighbor resolution:* For solicitations from assigned addresses, it sends a
+  unicast advertisement directly to the requester with the Solicited flag set.
+
+The daemon scans interface index, operational flags, MAC address, and link-local
+address once per second. If an interface goes down or its link-local address
+changes, the daemon cancels any queued replies for that interface.
+
+== Configuration
+
+The default configuration path is `/etc/ndp-responder-lite.toml`.
+
+[source,toml]
+----
+[[responder]]
+prefix = "2001:db8:1:0:1::/80"
+interface = "eth0"
+
+[limits]
+max_queued = 4096
+packets_per_second = 200
+burst = 400
+reply_timeout_ms = 3000
+----
+
+=== Options
+
+Each `responder` entry defines a prefix reservation rule:
+
+`prefix`::
+Advertised IPv6 prefix (for example `2001:db8:1:0:1::/80`). Host bits must be
+zero. Link-local, multicast, and loopback prefixes are rejected.
+
+`interface`::
+Linux network interface to monitor (for example `eth0`). Multiple disjoint
+prefixes can use the same interface. Overlapping prefixes on the same interface
+are rejected.
+
+`[limits]` sets optional traffic and queue limits:
+
+`max_queued` (default: 4096)::
+Maximum queued replies across all interfaces.
+
+`packets_per_second` (default: 200)::
+Per-interface token bucket refill rate for incoming and outgoing packets.
+
+`burst` (default: 400)::
+Per-interface token burst capacity.
+
+`reply_timeout_ms` (default: 3000)::
+Maximum lifetime in milliseconds for queued replies before dropping them.
+
+== Quick start
+
+Build the release binary:
+
+[source,shell]
+----
+cargo build --release --locked
+----
+
+Validate a configuration file:
+
+[source,shell]
+----
+./target/release/ndp-responder-lite --config example.config.toml --check
+----
+
+Run the daemon:
+
+[source,shell]
+----
+sudo ./target/release/ndp-responder-lite --config example.config.toml
+----
+
+The daemon requires Linux, `CAP_NET_RAW` capability, Ethernet interfaces, and
+configured link-local IPv6 addresses.
+
+== Routing setup
+
+Enable IPv6 forwarding in the Linux kernel and configure downstream routes.
+For example:
+
+[source,shell]
+----
+sysctl -w net.ipv6.conf.all.forwarding=1
+ip -6 addr add 2001:db8:1::1/64 dev eth0
+ip -6 route add 2001:db8:1:0:1::/80 via fe80::2 dev eth1
+----
+
+Do not include the router's own assigned IPv6 addresses in responder prefixes;
+the kernel responds for its own addresses directly.
+
+For sparsely allocated downstream prefixes, an aggregate discard route prevents
+unallocated addresses from generating downstream solicitations:
+
+[source,shell]
+----
+ip -6 route add blackhole 2001:db8:1:0:1::/80
+ip -6 route add 2001:db8:1:0:1::2/128 dev eth1
+----
+
+When running on a Linux bridge port with multicast snooping enabled, configure
+the responder port as a multicast router port so the bridge forwards
+solicited-node multicast frames:
+
+[source,shell]
+----
+ip link set dev eth0 type bridge_slave mcast_router 2
+----
+
+== Protocol details
+
+The daemon attaches a classic BPF filter to a raw `AF_PACKET` socket on each
+interface. The kernel drops outgoing frames, non-IPv6 packets, and frames with
+hop limit other than 255 before they reach userspace. Sockets join
+`PACKET_MR_ALLMULTI` to receive solicited-node multicast without putting the
+interface into promiscuous mode.
+
+In userspace, the parser verifies Ethernet, IPv6, and ICMPv6 framing,
+checksums, hop limits, and options. It discards fragmented packets (RFC 6980).
+Outgoing advertisements clear the Router and Override flags, set the
+Solicited flag only for unicast replies, and include the interface MAC
+address in a Target Link-Layer Address option. Separate token buckets
+rate-limit incoming solicitations and outgoing replies per interface.
+
+== Installation
+
+=== NixOS
+
+The flake provides a package and a NixOS module:
+
+[source,nix]
+----
+services.ndp-responder-lite = {
+  enable = true;
+  settings.responder = [{
+    prefix = "2001:db8:1:0:1::/80";
+    interface = "eth0";
+  }];
+};
+----
+
+The module enables kernel IPv6 forwarding by default
+(`enableForwarding = true`). Build and validate with:
+
+[source,shell]
+----
+nix build
+nix flake check
+----
+
+=== Debian
+
+Build the Debian package with `cargo-deb`:
+
+[source,shell]
+----
+cargo install cargo-deb --version 3.8.0 --locked
+cargo deb --locked
+----
+
+Install the package and start the systemd service:
+
+[source,shell]
+----
+sudo apt install ./target/debian/ndp-responder-lite_0.1.0-1_amd64.deb
+sudo install -m 644 /usr/share/ndp-responder-lite/example.toml \
+  /etc/ndp-responder-lite.toml
+sudoedit /etc/ndp-responder-lite.toml
+sudo ndp-responder-lite --check
+sudo systemctl enable --now ndp-responder-lite
+----
+
+The systemd service runs under a dynamic user with `CAP_NET_RAW` capability.
+
+== Development and testing
+
+Run code formatting checks, lints, and unit tests:
+
+[source,shell]
+----
+just check
+just test-rust
+----
+
+Run privileged network integration tests using Linux network namespaces:
+
+[source,shell]
+----
+just test-network
+----
+
+Run a specific network test:
+
+[source,shell]
+----
+just test-network simultaneous_dad
+----
+
+The network test suite creates temporary network namespaces and virtual
+Ethernet pairs to verify Neighbor Discovery, Duplicate Address Detection,
+kernel routing, discard routes, NPTv6, multicast snooping, and interface
+recovery.
+
+== Repository layout
+
+* `src/`: Core packet parsing, rate limiting engine, configuration, and Linux
+  socket driver.
+* `tests/`: Unit and property tests, and the Linux network namespace test suite.
+* `packaging/debian/`: Systemd service unit and manual page.
+* `packaging/nix/`: Nix package definition and NixOS service module.
+* `example.config.toml`: Annotated sample configuration.
+* `justfile`: Common build, test, and packaging commands.
+
+== License
+
+MIT License. See link:LICENSE[LICENSE] for details.

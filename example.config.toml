@@ -1,0 +1,19 @@
+# Reserve this prefix on the upstream Ethernet link.
+# The daemon answers Neighbor Solicitations for all addresses in this prefix.
+[[responder]]
+prefix = "2001:db8:1:0:1::/80"
+interface = "eth0"
+
+# Optional resource limits. Omitted fields default to the values shown below.
+[limits]
+# Maximum queued replies across all interfaces.
+max_queued = 4096
+
+# Per-interface token refill rate in packets per second.
+packets_per_second = 200
+
+# Per-interface token burst capacity in packets.
+burst = 400
+
+# Maximum wait time in milliseconds for a queued reply before dropping it.
+reply_timeout_ms = 3000
