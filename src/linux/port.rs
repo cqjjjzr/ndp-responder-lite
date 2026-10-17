@@ -48,7 +48,9 @@ pub(super) fn open_interface_port(
     generation: u64,
     events: mpsc::Sender<IncomingFrameEvent>,
 ) -> io::Result<InterfacePort> {
-    let socket = Arc::new(AsyncFd::new(create_packet_socket(&interface)?)?);
+    let socket = create_packet_socket(&interface)?;
+    // SAFETY: Socket owns a stable descriptor that stays open until AsyncFd releases it.
+    let socket = Arc::new(unsafe { AsyncFd::register(socket)? });
     let receiver = socket.clone();
     let name = interface.name.clone();
     let reader = tokio::spawn(async move {

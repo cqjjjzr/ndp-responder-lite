@@ -6,7 +6,7 @@ jobs:
   rust:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
@@ -16,9 +16,9 @@ jobs:
       - run: cargo test --locked
   debian:
     runs-on: ubuntu-latest
-    container: rust:1.94.1-slim-trixie
+    container: rust:1.99.1-slim-trixie
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - run: apt-get update && apt-get install -y --no-install-recommends dpkg-dev liblzma-dev
       - uses: Swatinem/rust-cache@v2
       - run: cargo install cargo-deb --version 3.8.0 --locked
