@@ -1,0 +1,2 @@
+# Preserve upstream license text, including its whitespace.
+THIRD_PARTY_NOTICES.md linguist-generated -whitespace

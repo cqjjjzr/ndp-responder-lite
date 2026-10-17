@@ -53,6 +53,7 @@ maintainer-scripts = "packaging/debian"
 assets = [
   ["target/release/ndp-responder-lite", "usr/bin/ndp-responder-lite", "755"],
   ["README.adoc", "usr/share/doc/ndp-responder-lite/README.adoc", "644"],
+  ["THIRD_PARTY_NOTICES.md", "usr/share/doc/ndp-responder-lite/THIRD_PARTY_NOTICES.md", "644"],
   ["example.config.toml", "usr/share/ndp-responder-lite/example.toml", "644"],
   ["packaging/debian/ndp-responder-lite.8", "usr/share/man/man8/ndp-responder-lite.8", "644"],
 ]

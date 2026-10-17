@@ -28,3 +28,7 @@ check-nix:
 # Build the package in a prepared Debian 13 environment.
 deb:
     cargo deb --locked
+
+# Regenerate dependency license notices with cargo-about.
+generate-notices:
+    cargo about generate --locked --fail about.hbs -o THIRD_PARTY_NOTICES.md

@@ -254,3 +254,12 @@ recovery.
 == License
 
 MIT License. See link:LICENSE[LICENSE] for details.
+Dependency license texts and attributions are included in
+link:THIRD_PARTY_NOTICES.md[THIRD_PARTY_NOTICES.md].
+
+After updating dependencies, regenerate the notices with `cargo-about` installed:
+
+[source,shell]
+----
+just generate-notices
+----
