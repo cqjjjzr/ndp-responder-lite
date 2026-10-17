@@ -1,29 +1,27 @@
-name: CI
-on: [push, pull_request]
+name: Build
+on:
+  push:
+    branches: [main]
 permissions:
   contents: read
 jobs:
-  rust:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt, clippy
-      - uses: Swatinem/rust-cache@v2
-      - run: cargo fmt --check
-      - run: cargo clippy --all-targets --locked -- -D warnings
-      - run: cargo test --locked
   debian:
     runs-on: ubuntu-latest
     container: rust:1.99.1-slim-trixie
     steps:
       - uses: actions/checkout@v7
       - run: apt-get update && apt-get install -y --no-install-recommends dpkg-dev liblzma-dev
+      - run: rustup component add rustfmt clippy
       - uses: Swatinem/rust-cache@v2
+      - run: cargo fmt --check
+      - run: cargo clippy --all-targets --locked -- -D warnings
+      - run: cargo test --locked
       - run: cargo install cargo-deb --version 3.8.0 --locked
       - run: cargo deb --locked
       - uses: actions/upload-artifact@v7
         with:
-          name: debian-package
+          name: ndp-responder-lite-debian13-amd64
           path: target/debian/*.deb
+          if-no-files-found: error
+          retention-days: 90
+          compression-level: 0
